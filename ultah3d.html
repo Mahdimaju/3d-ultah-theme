@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Selamat Ulang Tahun! - 3D Celebration</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at center, #2e1065 0%, #0f0728 100%);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        h1,
+        h2,
+        .font-display {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        .ui-layer {
+            position: relative;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .interactive-el {
+            pointer-events: auto;
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        /* Custom Animations */
+        @keyframes floatSlow {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        .animate-float {
+            animation: floatSlow 3.5s ease-in-out infinite;
+        }
+
+        @keyframes pulseGlow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 15px rgba(244, 63, 94, 0.6), 0 0 30px rgba(244, 63, 94, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 25px rgba(244, 63, 94, 0.9), 0 0 45px rgba(244, 63, 94, 0.6);
+            }
+        }
+
+        .btn-glow {
+            animation: pulseGlow 2s infinite;
+        }
+    </style>
+</head>
+
+<body class="text-white">
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay -->
+    <div class="ui-layer flex flex-col justify-between w-full h-screen p-4 sm:p-6 md:p-8">
+
+        <!-- Top Bar -->
+        <div class="flex justify-between items-start w-full max-w-6xl mx-auto">
+            <!-- Title Banner -->
+            <div class="glass-panel rounded-2xl px-4 py-3 sm:px-6 sm:py-4 animate-float">
+                <div
+                    class="flex items-center gap-2 text-amber-300 text-xs sm:text-sm font-bold tracking-wider uppercase mb-1">
+                    <i class="fa-solid fa-sparkles"></i> Spesial Untukmu <i class="fa-solid fa-sparkles"></i>
+                </div>
+                <h1
+                    class="text-2xl sm:text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-300 via-amber-200 to-cyan-300 drop-shadow-sm">
+                    Happy Birthday! 🎉
+                </h1>
+                <p id="status-subtitle" class="text-xs sm:text-sm text-purple-200 mt-1">
+                    Geser layar untuk memutar • Klik objek 3D untuk kejutan!
+                </p>
+            </div>
+
+            <!-- Audio & Camera Controls -->
+            <div class="flex gap-2 sm:gap-3">
+                <button id="btn-music" onclick="toggleMusic()"
+                    class="interactive-el glass-panel w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center text-lg hover:bg-white/25 active:scale-95 transition-all"
+                    title="Putar Musik">
+                    <i id="music-icon" class="fa-solid fa-volume-xmark text-pink-300"></i>
+                </button>
+                <button onclick="resetCameraView()"
+                    class="interactive-el glass-panel w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center text-lg hover:bg-white/25 active:scale-95 transition-all"
+                    title="Reset Kamera">
+                    <i class="fa-solid fa-camera-rotate text-cyan-300"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Center Dynamic Notification / Hint -->
+        <div id="toast-msg"
+            class="self-center glass-panel px-5 py-2.5 rounded-full text-xs sm:text-sm font-semibold text-amber-200 opacity-0 transition-opacity duration-300 pointer-events-none">
+            ✨ Lilin berhasil ditiup!
+        </div>
+
+        <!-- Bottom Action Controls -->
+        <div class="w-full max-w-2xl mx-auto flex flex-col items-center gap-3 mb-2">
+            <!-- Helper Chips -->
+            <div class="flex flex-wrap justify-center gap-2 text-xs text-purple-200/90">
+                <span class="glass-panel px-3 py-1 rounded-full"><i
+                        class="fa-solid fa-hand-pointer mr-1 text-pink-400"></i> Klik Balon = Pecah</span>
+                <span class="glass-panel px-3 py-1 rounded-full"><i class="fa-solid fa-gift mr-1 text-amber-400"></i>
+                    Klik Kado = Buka</span>
+                <span class="glass-panel px-3 py-1 rounded-full"><i class="fa-solid fa-fire mr-1 text-orange-400"></i>
+                    Klik Lilin = Tiup</span>
+            </div>
+
+            <!-- Main Action Buttons -->
+            <div
+                class="glass-panel p-2 sm:p-3 rounded-3xl flex flex-wrap justify-center items-center gap-2 sm:gap-3 w-full shadow-2xl">
+                <button id="btn-candle" onclick="toggleCandles()"
+                    class="interactive-el btn-glow bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white font-display font-semibold px-4 py-2.5 sm:px-6 sm:py-3 rounded-2xl flex items-center gap-2 text-sm sm:text-base transition-all active:scale-95">
+                    <i class="fa-solid fa-wind"></i>
+                    <span id="candle-btn-text">Tiup Lilin</span>
+                </button>
+
+                <button onclick="openCardModal()"
+                    class="interactive-el bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-display font-semibold px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl flex items-center gap-2 text-sm sm:text-base shadow-lg transition-all active:scale-95">
+                    <i class="fa-solid fa-envelope-open-text"></i>
+                    <span>Buka Kartu Ucapan</span>
+                </button>
+
+                <button onclick="spawnConfettiBurst(120)"
+                    class="interactive-el bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-display font-semibold px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl flex items-center gap-2 text-sm sm:text-base shadow-lg transition-all active:scale-95">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>Pesta Konfeti</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Birthday Greeting Card Modal -->
+    <div id="card-modal"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+        <div id="card-content"
+            class="bg-gradient-to-br from-indigo-950 via-purple-900 to-rose-950 border-2 border-amber-300/40 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl transform scale-90 transition-all duration-300 relative overflow-hidden">
+
+            <!-- Decorative Glow -->
+            <div class="absolute -top-20 -right-20 w-40 h-40 bg-pink-500/30 rounded-full blur-3xl pointer-events-none">
+            </div>
+            <div
+                class="absolute -bottom-20 -left-20 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl pointer-events-none">
+            </div>
+
+            <!-- Close Button -->
+            <button onclick="closeCardModal()"
+                class="
+                absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="text-center">
+                <div
+                    class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-amber-400 to-pink-500 flex items-center justify-center shadow-lg">
+                    <i class="fa-solid fa-crown text-3xl text-white"></i>
+                </div>
+
+                <h2 class="text-2xl sm:text-3xl font-bold text-amber-200 mb-2">Selamat Ulang Tahun! 🎂</h2>
+                <div class="w-20 h-1 bg-gradient-to-r from-transparent via-pink-400 to-transparent mx-auto mb-5"></div>
+
+                <div
+                    class="text-left space-y-3 text-purple-100 text-sm sm:text-base leading-relaxed bg-white/5 p-4 sm:p-5 rounded-2xl border border-white/10">
+                    <p>
+                        Hari ini adalah hari yang sangat istimewa! Semoga di usia yang baru ini, setiap langkahmu selalu
+                        dipenuhi kebahagiaan, kesehatan, dan keberkahan yang melimpah. ✨
+                    </p>
+                    <p>
+                        Semoga semua impian dan harapan yang kamu panjatkan saat meniup lilin hari ini segera terwujud
+                        satu per satu. Teruslah bersinar dan menjadi pribadi yang menginspirasi! 🌟
+                    </p>
+                    <p class="font-semibold text-amber-300 pt-2 text-right font-display">
+                        — Wish You All The Best! ❤️
+                    </p>
+                </div>
+
+                <div class="mt-6 flex justify-center gap-3">
+                    <button onclick="closeCardModal(); spawnConfettiBurst(150);"
+                        class="bg-gradient-to-r from-pink-500 to-amber-500 hover:from-pink-600 hover:to-amber-600 text-white font-display font-semibold px-6 py-2.5 rounded-xl shadow-lg transition-transform active:scale-95">
+                        Terima Kasih! 🎉
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. WEB AUDIO SYNTHESIZER (No external MP3)
+        // ==========================================
+        let audioCtx = null;
+        let isMusicPlaying = false;
+        let melodyTimeout = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playTone(freq, type = 'sine', duration = 0.3, volume = 0.12) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playPopSound() {
+            initAudio();
+            playTone(520, 'triangle', 0.08, 0.25);
+            setTimeout(() => playTone(180, 'sine', 0.12, 0.3), 30);
+        }
+
+        function playSparkleSound() {
+            initAudio();
+            const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+            notes.forEach((n, idx) => {
+                setTimeout(() => playTone(n, 'sine', 0.25, 0.1), idx * 60);
+            });
+        }
+
+        function playBlowSound() {
+            initAudio();
+            // White noise burst to simulate blowing wind
+            const bufferSize = audioCtx.sampleRate * 0.45;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(600, audioCtx.currentTime);
+
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            noise.start();
+        }
+
+        // Happy Birthday Melody Notes (Frequency in Hz, Duration in beats)
+        const birthdaySong = [
+            [261.63, 0.75], [261.63, 0.25], [293.66, 1], [261.63, 1], [349.23, 1], [329.63, 2],
+            [261.63, 0.75], [261.63, 0.25], [293.66, 1], [261.63, 1], [392.00, 1], [349.23, 2],
+            [261.63, 0.75], [261.63, 0.25], [523.25, 1], [440.00, 1], [349.23, 1], [329.63, 1], [293.66, 2],
+            [466.16, 0.75], [466.16, 0.25], [440.00, 1], [349.23, 1], [392.00, 1], [349.23, 2.5]
+        ];
+
+        let currentNoteIndex = 0;
+        function playNextMelodyNote() {
+            if (!isMusicPlaying) return;
+            const [freq, beats] = birthdaySong[currentNoteIndex];
+            const tempo = 380; // ms per beat
+            playTone(freq, 'triangle', (beats * tempo) / 1000 * 0.9, 0.12);
+            playTone(freq * 0.5, 'sine', (beats * tempo) / 1000 * 0.9, 0.05); // Warm bass
+
+            currentNoteIndex = (currentNoteIndex + 1) % birthdaySong.length;
+            melodyTimeout = setTimeout(playNextMelodyNote, beats * tempo);
+        }
+
+        function toggleMusic() {
+            initAudio();
+            isMusicPlaying = !isMusicPlaying;
+            const icon = document.getElementById('music-icon');
+            if (isMusicPlaying) {
+                icon.className = 'fa-solid fa-music text-amber-300 animate-spin';
+                playNextMelodyNote();
+                showToast('🎵 Memutar lagu Happy Birthday!');
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-pink-300';
+                clearTimeout(melodyTimeout);
+                showToast('🔇 Musik dihentikan');
+            }
+        }
+
+        // ==========================================
+        // 2. THREE.JS 3D SCENE SETUP
+        // ==========================================
+        let scene, camera, renderer;
+        let mainGroup, cakeGroup, candlesLit = true;
+        let flameMeshes = [];
+        let candleLight;
+        let balloons = [];
+        let gifts = [];
+        let confettiParticles = [];
+        let starField;
+
+        // Camera spherical coordinates for smooth touch/mouse orbit
+        let camRadius = 15;
+        let camTheta = 0.3;
+        let camPhi = 1.15;
+        let targetTheta = 0.3;
+        let targetPhi = 1.15;
+        let targetRadius = 15;
+        let isDragging = false;
+        let prevPointer = { x: 0, y: 0 };
+        let pointerDownPos = { x: 0, y: 0 };
+        let autoRotate = true;
+
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x160936, 0.022);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            updateCameraPosition();
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xd8b4fe, 0.65);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfffbeb, 0.8);
+            dirLight.position.set(10, 18, 12);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            scene.add(dirLight);
+
+            const pinkPointLight = new THREE.PointLight(0xf43f5e, 1.2, 25);
+            pinkPointLight.position.set(-8, 6, -6);
+            scene.add(pinkPointLight);
+
+            const cyanPointLight = new THREE.PointLight(0x38bdf8, 1.0, 25);
+            cyanPointLight.position.set(8, 6, 6);
+            scene.add(cyanPointLight);
+
+            // Warm Candle Light
+            candleLight = new THREE.PointLight(0xffaa00, 1.8, 15);
+            candleLight.position.set(0, 4.8, 0);
+            candleLight.castShadow = true;
+            scene.add(candleLight);
+
+            // Main Group
+            mainGroup = new THREE.Group();
+            scene.add(mainGroup);
+
+            // Build Objects
+            createFestiveTable();
+            createBirthdayCake();
+            create3DBannerText();
+            createGiftBoxes();
+            createFloatingBalloons();
+            createStarryBackground();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            const dom = renderer.domElement;
+            dom.addEventListener('pointerdown', onPointerDown);
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
+            dom.addEventListener('wheel', onMouseWheel, { passive: true });
+        }
+
+        // ==========================================
+        // 3. 3D OBJECTS CONSTRUCTION
+        // ==========================================
+
+        function createFestiveTable() {
+            // Circular Wooden/Pastel Pedestal Table
+            const tableGroup = new THREE.Group();
+
+            // Table Top
+            const topGeo = new THREE.CylinderGeometry(6.2, 6.4, 0.5, 64);
+            const topMat = new THREE.MeshStandardMaterial({
+                color: 0xfdf2f8,
+                roughness: 0.3,
+                metalness: 0.1
+            });
+            const topMesh = new THREE.Mesh(topGeo, topMat);
+            topMesh.position.y = -0.25;
+            topMesh.receiveShadow = true;
+            tableGroup.add(topMesh);
+
+            // Gold Rim
+            const rimGeo = new THREE.TorusGeometry(6.3, 0.12, 16, 100);
+            const rimMat = new THREE.MeshStandardMaterial({
+                color: 0xfbbf24,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+            const rimMesh = new THREE.Mesh(rimGeo, rimMat);
+            rimMesh.rotation.x = Math.PI / 2;
+            rimMesh.position.y = -0.25;
+            tableGroup.add(rimMesh);
+
+            // Cake Stand Plate
+            const standGeo = new THREE.CylinderGeometry(3.2, 3.5, 0.25, 48);
+            const standMat = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                roughness: 0.15,
+                metalness: 0.2
+            });
+            const standMesh = new THREE.Mesh(standGeo, standMat);
+            standMesh.position.y = 0.12;
+            standMesh.receiveShadow = true;
+            tableGroup.add(standMesh);
+
+            mainGroup.add(tableGroup);
+        }
+
+        function createBirthdayCake() {
+            cakeGroup = new THREE.Group();
+            cakeGroup.position.y = 0.25;
+
+            // Tier 1 (Bottom Sponge)
+            const tier1Geo = new THREE.CylinderGeometry(2.6, 2.7, 1.5, 48);
+            const tier1Mat = new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.4 });
+            const tier1 = new THREE.Mesh(tier1Geo, tier1Mat);
+            tier1.position.y = 0.75;
+            tier1.castShadow = true;
+            tier1.receiveShadow = true;
+            tier1.userData = { type: 'cake' };
+            cakeGroup.add(tier1);
+
+            // Cream Icing Drips Tier 1
+            const cream1Geo = new THREE.TorusGeometry(2.58, 0.18, 16, 48);
+            const creamMat = new THREE.MeshStandardMaterial({ color: 0xfff1f2, roughness: 0.25 });
+            const cream1 = new THREE.Mesh(cream1Geo, creamMat);
+            cream1.rotation.x = Math.PI / 2;
+            cream1.position.y = 1.48;
+            cakeGroup.add(cream1);
+
+            // Tier 2 (Top Sponge)
+            const tier2Geo = new THREE.CylinderGeometry(1.8, 1.9, 1.3, 48);
+            const tier2Mat = new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.4 });
+            const tier2 = new THREE.Mesh(tier2Geo, tier2Mat);
+            tier2.position.y = 2.1;
+            tier2.castShadow = true;
+            tier2.receiveShadow = true;
+            tier2.userData = { type: 'cake' };
+            cakeGroup.add(tier2);
+
+            // Cream Icing Tier 2
+            const cream2Geo = new THREE.TorusGeometry(1.78, 0.15, 16, 48);
+            const cream2 = new THREE.Mesh(cream2Geo, creamMat);
+            cream2.rotation.x = Math.PI / 2;
+            cream2.position.y = 2.72;
+            cakeGroup.add(cream2);
+
+            // Cherries / Strawberries on top
+            const berryGeo = new THREE.SphereGeometry(0.18, 16, 16);
+            const berryMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, roughness: 0.2 });
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const berry = new THREE.Mesh(berryGeo, berryMat);
+                berry.position.set(Math.cos(angle) * 1.35, 2.85, Math.sin(angle) * 1.35);
+                cakeGroup.add(berry);
+            }
+
+            // Colorful Sprinkles around Tier 1
+            const sprinkleColors = [0x38bdf8, 0xfacc15, 0x4ade80, 0xa855f7, 0xffffff];
+            const sprGeo = new THREE.SphereGeometry(0.08, 8, 8);
+            for (let i = 0; i < 24; i++) {
+                const angle = (i / 24) * Math.PI * 2;
+                const sprMat = new THREE.MeshStandardMaterial({ color: sprinkleColors[i % sprinkleColors.length] });
+                const spr = new THREE.Mesh(sprGeo, sprMat);
+                const r = 2.64;
+                spr.position.set(Math.cos(angle) * r, 0.5 + (i % 3) * 0.35, Math.sin(angle) * r);
+                cakeGroup.add(spr);
+            }
+
+            // 5 Candles on Top
+            const candlePositions = [
+                [0, 0],
+                [-0.65, -0.45],
+                [0.65, -0.45],
+                [-0.55, 0.55],
+                [0.55, 0.55]
+            ];
+
+            const candleGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.95, 16);
+            const candleMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+            const stripeMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8 });
+
+            candlePositions.forEach((pos, idx) => {
+                const cGroup = new THREE.Group();
+                cGroup.position.set(pos[0], 2.75, pos[1]);
+
+                const body = new THREE.Mesh(candleGeo, candleMat);
+                body.position.y = 0.45;
+                body.castShadow = true;
+                body.userData = { type: 'candle' };
+                cGroup.add(body);
+
+                // Ring stripe
+                const ringGeo = new THREE.TorusGeometry(0.092, 0.02, 8, 16);
+                const ring = new THREE.Mesh(ringGeo, stripeMat);
+                ring.rotation.x = Math.PI / 2;
+                ring.position.y = 0.55;
+                cGroup.add(ring);
+
+                // Wick
+                const wickGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.15, 8);
+                const wickMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+                const wick = new THREE.Mesh(wickGeo, wickMat);
+                wick.position.y = 0.95;
+                cGroup.add(wick);
+
+                // Flame (Teardrop Cone + Core)
+                const flameGroup = new THREE.Group();
+                flameGroup.position.y = 1.12;
+
+                const outerFlameGeo = new THREE.ConeGeometry(0.12, 0.32, 16);
+                const outerFlameMat = new THREE.MeshBasicMaterial({ color: 0xff9900, transparent: true, opacity: 0.9 });
+                const outerFlame = new THREE.Mesh(outerFlameGeo, outerFlameMat);
+                outerFlame.userData = { type: 'candle' };
+                flameGroup.add(outerFlame);
+
+                const innerFlameGeo = new THREE.SphereGeometry(0.07, 12, 12);
+                const innerFlameMat = new THREE.MeshBasicMaterial({ color: 0xffffaa });
+                const innerFlame = new THREE.Mesh(innerFlameGeo, innerFlameMat);
+                innerFlame.position.y = -0.08;
+                flameGroup.add(innerFlame);
+
+                cGroup.add(flameGroup);
+                flameMeshes.push({ group: flameGroup, phase: idx * 1.3 });
+
+                cakeGroup.add(cGroup);
+            });
+
+            mainGroup.add(cakeGroup);
+        }
+
+        function create3DBannerText() {
+            // Create a Canvas Texture for a curved floating 3D plaque behind the cake
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            // Rounded Banner Background
+            const grad = ctx.createLinearGradient(0, 0, 1024, 0);
+            grad.addColorStop(0, '#ec4899');
+            grad.addColorStop(0.5, '#8b5cf6');
+            grad.addColorStop(1, '#06b6d4');
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.roundRect(20, 20, 984, 216, 60);
+            ctx.fill();
+
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = '#fde047';
+            ctx.stroke();
+
+            // Text
+            ctx.font = 'bold 82px Fredoka, sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0,0,0,0.4)';
+            ctx.shadowBlur = 12;
+            ctx.fillText('✨ HAPPY BIRTHDAY ✨', 512, 128);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            const planeGeo = new THREE.PlaneGeometry(7.5, 1.85);
+            const planeMat = new THREE.MeshBasicMaterial({
+                map: tex,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+
+            const bannerMesh = new THREE.Mesh(planeGeo, planeMat);
+            bannerMesh.position.set(0, 5.8, -2.5);
+            bannerMesh.userData = { type: 'banner', baseY: 5.8 };
+            mainGroup.add(bannerMesh);
+        }
+
+        function createGiftBoxes() {
+            const giftConfigs = [
+                { pos: [-3.8, 0.6, 1.8], size: 1.2, color: 0x38bdf8, ribbon: 0xfacc15, rot: 0.4 },
+                { pos: [3.9, 0.5, 1.5], size: 1.0, color: 0xa855f7, ribbon: 0xf472b6, rot: -0.5 },
+                { pos: [-2.8, 0.45, -3.2], size: 0.9, color: 0x4ade80, ribbon: 0xef4444, rot: 0.8 },
+                { pos: [3.2, 0.65, -2.8], size: 1.3, color: 0xf43f5e, ribbon: 0xfef08a, rot: -0.3 }
+            ];
+
+            giftConfigs.forEach((cfg, idx) => {
+                const gGroup = new THREE.Group();
+                gGroup.position.set(cfg.pos[0], cfg.pos[1], cfg.pos[2]);
+                gGroup.rotation.y = cfg.rot;
+
+                // Box
+                const boxGeo = new THREE.BoxGeometry(cfg.size, cfg.size, cfg.size);
+                const boxMat = new THREE.MeshStandardMaterial({ color: cfg.color, roughness: 0.35 });
+                const box = new THREE.Mesh(boxGeo, boxMat);
+                box.castShadow = true;
+                box.receiveShadow = true;
+                box.userData = { type: 'gift', parentGroup: gGroup, index: idx };
+                gGroup.add(box);
+
+                // Lid
+                const lidGeo = new THREE.BoxGeometry(cfg.size * 1.06, cfg.size * 0.22, cfg.size * 1.06);
+                const lidMat = new THREE.MeshStandardMaterial({ color: cfg.ribbon, roughness: 0.3 });
+                const lid = new THREE.Mesh(lidGeo, lidMat);
+                lid.position.y = cfg.size * 0.45;
+                lid.castShadow = true;
+                lid.userData = { type: 'gift', parentGroup: gGroup, index: idx };
+                gGroup.add(lid);
+
+                gGroup.userData = {
+                    baseY: cfg.pos[1],
+                    bounceVel: 0,
+                    isOpened: false
+                };
+
+                gifts.push(gGroup);
+                mainGroup.add(gGroup);
+            });
+        }
+
+        function createFloatingBalloons() {
+            const balloonColors = [0xf43f5e, 0x38bdf8, 0xfacc15, 0xa855f7, 0x4ade80, 0xfb923c];
+            const balloonPositions = [
+                [-5.5, 4.5, -2],
+                [5.5, 5.0, -1.5],
+                [-4.8, 6.2, 2.5],
+                [4.8, 5.8, 2.8],
+                [-6.5, 3.2, 1.0],
+                [6.5, 3.8, -0.5],
+                [0, 7.8, -4.5],
+                [-3.2, 7.2, -3.8],
+                [3.5, 7.0, -3.5]
+            ];
+
+            balloonPositions.forEach((pos, idx) => {
+                const bGroup = new THREE.Group();
+                bGroup.position.set(pos[0], pos[1], pos[2]);
+
+                const color = balloonColors[idx % balloonColors.length];
+                const bGeo = new THREE.SphereGeometry(0.85, 24, 24);
+                bGeo.scale(1, 1.18, 1);
+                const bMat = new THREE.MeshStandardMaterial({
+                    color: color,
+                    roughness: 0.15,
+                    metalness: 0.1
+                });
+                const bMesh = new THREE.Mesh(bGeo, bMat);
+                bMesh.castShadow = true;
+                bMesh.userData = { type: 'balloon', balloonGroup: bGroup, color: color };
+                bGroup.add(bMesh);
+
+                // Balloon Knot
+                const knotGeo = new THREE.ConeGeometry(0.15, 0.2, 12);
+                const knot = new THREE.Mesh(knotGeo, bMat);
+                knot.position.y = -1.02;
+                bGroup.add(knot);
+
+                // String
+                const strGeo = new THREE.CylinderGeometry(0.015, 0.015, 2.6, 6);
+                const strMat = new THREE.MeshBasicMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.6 });
+                const str = new THREE.Mesh(strGeo, strMat);
+                str.position.y = -2.3;
+                bGroup.add(str);
+
+                bGroup.userData = {
+                    baseY: pos[1],
+                    baseX: pos[0],
+                    phase: idx * 0.9,
+                    popped: false
+                };
+
+                balloons.push(bGroup);
+                mainGroup.add(bGroup);
+            });
+        }
+
+        function createStarryBackground() {
+            const starCount = 450;
+            const geo = new THREE.BufferGeometry();
+            const positions = new Float32Array(starCount * 3);
+            const colors = new Float32Array(starCount * 3);
+
+            const palette = [
+                new THREE.Color(0xffffff),
+                new THREE.Color(0xfde047),
+                new THREE.Color(0xf472b6),
+                new THREE.Color(0x38bdf8)
+            ];
+
+            for (let i = 0; i < starCount; i++) {
+                const r = 22 + Math.random() * 35;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+
+                positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+                positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+                positions[i * 3 + 2] = r * Math.cos(phi);
+
+                const c = palette[Math.floor(Math.random() * palette.length)];
+                colors[i * 3] = c.r;
+                colors[i * 3 + 1] = c.g;
+                colors[i * 3 + 2] = c.b;
+            }
+
+            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const mat = new THREE.PointsMaterial({
+                size: 0.28,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.85
+            });
+
+            starField = new THREE.Points(geo, mat);
+            scene.add(starField);
+        }
+
+        // ==========================================
+        // 4. CONFETTI PARTICLE SYSTEM
+        // ==========================================
+        function spawnConfettiBurst(count = 80, origin = new THREE.Vector3(0, 4.5, 0)) {
+            playSparkleSound();
+            const colors = [0xf43f5e, 0xfacc15, 0x38bdf8, 0x4ade80, 0xa855f7, 0xffffff, 0xfb923c];
+            const pieceGeo = new THREE.PlaneGeometry(0.22, 0.14);
+
+            for (let i = 0; i < count; i++) {
+                const mat = new THREE.MeshBasicMaterial({
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    side: THREE.DoubleSide
+                });
+                const mesh = new THREE.Mesh(pieceGeo, mat);
+                mesh.position.copy(origin);
+
+                // Random velocity outward & upward
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 0.08 + Math.random() * 0.22;
+                const vel = new THREE.Vector3(
+                    Math.cos(angle) * speed,
+                    0.12 + Math.random() * 0.26,
+                    Math.sin(angle) * speed
+                );
+
+                const rotSpeed = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.3,
+                    (Math.random() - 0.5) * 0.3,
+                    (Math.random() - 0.5) * 0.3
+                );
+
+                scene.add(mesh);
+                confettiParticles.push({
+                    mesh,
+                    vel,
+                    rotSpeed,
+                    life: 160 + Math.random() * 60
+                });
+            }
+        }
+
+        // ==========================================
+        // 5. INTERACTIVITY & GAMEPLAY LOGIC
+        // ==========================================
+        function toggleCandles() {
+            candlesLit = !candlesLit;
+            const btnText = document.getElementById('candle-btn-text');
+
+            if (!candlesLit) {
+                // Blow out candles
+                playBlowSound();
+                flameMeshes.forEach(f => f.group.visible = false);
+                candleLight.intensity = 0;
+                btnText.innerText = 'Nyalakan Lilin';
+                showToast('🎉 Yeay! Selamat Ulang Tahun! Semoga semua impianmu terkabul!');
+                setTimeout(() => {
+                    spawnConfettiBurst(160, new THREE.Vector3(0, 4.2, 0));
+                    if (!isMusicPlaying) toggleMusic();
+                }, 350);
+            } else {
+                // Relight candles
+                playSparkleSound();
+                flameMeshes.forEach(f => f.group.visible = true);
+                candleLight.intensity = 1.8;
+                btnText.innerText = 'Tiup Lilin';
+                showToast('🕯️ Lilin dinyalakan kembali!');
+            }
+        }
+
+        function popBalloon(balloonGroup, color) {
+            if (balloonGroup.userData.popped) return;
+            balloonGroup.userData.popped = true;
+            balloonGroup.visible = false;
+
+            playPopSound();
+            spawnConfettiBurst(35, balloonGroup.position.clone());
+            showToast('🎈 Balon meletus! Dor!');
+
+            // Respawn balloon after 5 seconds so the user never runs out of fun
+            setTimeout(() => {
+                balloonGroup.visible = true;
+                balloonGroup.scale.set(0.01, 0.01, 0.01);
+                balloonGroup.userData.popped = false;
+            }, 5000);
+        }
+
+        function triggerGiftSurprise(giftGroup) {
+            giftGroup.userData.bounceVel = 0.22;
+            spawnConfettiBurst(50, giftGroup.position.clone().add(new THREE.Vector3(0, 1, 0)));
+            showToast('🎁 Kejutan dari dalam kotak kado!');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast-msg');
+            toast.innerText = message;
+            toast.style.opacity = '1';
+            clearTimeout(toast.hideTimer);
+            toast.hideTimer = setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 2800);
+        }
+
+        function openCardModal() {
+            initAudio();
+            playSparkleSound();
+            const modal = document.getElementById('card-modal');
+            const content = document.getElementById('card-content');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            content.classList.remove('scale-90');
+            content.classList.add('scale-100');
+        }
+
+        function closeCardModal() {
+            const modal = document.getElementById('card-modal');
+            const content = document.getElementById('card-content');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-90');
+        }
+
+        function resetCameraView() {
+            targetTheta = 0.3;
+            targetPhi = 1.15;
+            targetRadius = 15;
+            autoRotate = true;
+            showToast('📷 Posisi kamera direset');
+        }
+
+        // ==========================================
+        // 6. POINTER & CAMERA CONTROLS
+        // ==========================================
+        function onPointerDown(e) {
+            isDragging = true;
+            autoRotate = false;
+            prevPointer.x = e.clientX;
+            prevPointer.y = e.clientY;
+            pointerDownPos.x = e.clientX;
+            pointerDownPos.y = e.clientY;
+        }
+
+        function onPointerMove(e) {
+            if (!isDragging) return;
+            const dx = e.clientX - prevPointer.x;
+            const dy = e.clientY - prevPointer.y;
+
+            targetTheta -= dx * 0.007;
+            targetPhi = Math.max(0.4, Math.min(Math.PI / 2 - 0.05, targetPhi - dy * 0.006));
+
+            prevPointer.x = e.clientX;
+            prevPointer.y = e.clientY;
+        }
+
+        function onPointerUp(e) {
+            if (!isDragging) return;
+            isDragging = false;
+
+            // Detect click vs drag
+            const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+            if (dist < 6) {
+                handleSceneClick(e);
+            }
+        }
+
+        function onMouseWheel(e) {
+            targetRadius = Math.max(8, Math.min(24, targetRadius + e.deltaY * 0.01));
+        }
+
+        function handleSceneClick(e) {
+            pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+            pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(pointer, camera);
+            const intersects = raycaster.intersectObjects(mainGroup.children, true);
+
+            if (intersects.length > 0) {
+                const hit = intersects[0].object;
+                const data = hit.userData;
+
+                if (data.type === 'balloon') {
+                    popBalloon(data.balloonGroup, data.color);
+                } else if (data.type === 'gift') {
+                    triggerGiftSurprise(data.parentGroup);
+                } else if (data.type === 'candle' || data.type === 'cake') {
+                    toggleCandles();
+                } else if (data.type === 'banner') {
+                    openCardModal();
+                }
+            }
+        }
+
+        function updateCameraPosition() {
+            camTheta += (targetTheta - camTheta) * 0.08;
+            camPhi += (targetPhi - camPhi) * 0.08;
+            camRadius += (targetRadius - camRadius) * 0.08;
+
+            camera.position.x = camRadius * Math.sin(camPhi) * Math.sin(camTheta);
+            camera.position.y = camRadius * Math.cos(camPhi) + 2.0;
+            camera.position.z = camRadius * Math.sin(camPhi) * Math.cos(camTheta);
+            camera.lookAt(0, 2.5, 0);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // ==========================================
+        // 7. ANIMATION LOOP
+        // ==========================================
+        let clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsed = clock.getElapsedTime();
+
+            // Gentle Auto Rotation
+            if (autoRotate && !isDragging) {
+                targetTheta += 0.0025;
+            }
+            updateCameraPosition();
+
+            // Flicker Candle Flames
+            if (candlesLit) {
+                flameMeshes.forEach(f => {
+                    const s = 1 + Math.sin(elapsed * 14 + f.phase) * 0.14;
+                    f.group.scale.set(s, 1 + Math.cos(elapsed * 18 + f.phase) * 0.18, s);
+                    f.group.rotation.z = Math.sin(elapsed * 8 + f.phase) * 0.08;
+                });
+                candleLight.intensity = 1.7 + Math.sin(elapsed * 15) * 0.25;
+            }
+
+            // Float Balloons
+            balloons.forEach(b => {
+                if (!b.userData.popped) {
+                    b.position.y = b.userData.baseY + Math.sin(elapsed * 2 + b.userData.phase) * 0.35;
+                    b.rotation.z = Math.cos(elapsed * 1.5 + b.userData.phase) * 0.05;
+                    // Smooth scale-in if respawned
+                    b.scale.lerp(new THREE.Vector3(1, 1, 1), 0.08);
+                }
+            });
+
+            // Bounce Gift Boxes
+            gifts.forEach(g => {
+                if (g.userData.bounceVel !== 0 || g.position.y > g.userData.baseY) {
+                    g.position.y += g.userData.bounceVel;
+                    g.userData.bounceVel -= 0.015; // gravity
+                    if (g.position.y <= g.userData.baseY) {
+                        g.position.y = g.userData.baseY;
+                        g.userData.bounceVel = 0;
+                    }
+                }
+            });
+
+            // Update Confetti Particles
+            for (let i = confettiParticles.length - 1; i >= 0; i--) {
+                const p = confettiParticles[i];
+                p.mesh.position.add(p.vel);
+                p.vel.y -= 0.0045; // gravity
+                p.vel.x *= 0.99;
+                p.vel.z *= 0.99;
+
+                p.mesh.rotation.x += p.rotSpeed.x;
+                p.mesh.rotation.y += p.rotSpeed.y;
+                p.mesh.rotation.z += p.rotSpeed.z;
+
+                p.life--;
+                if (p.life <= 0 || p.mesh.position.y < -5) {
+                    scene.remove(p.mesh);
+                    p.mesh.geometry.dispose();
+                    p.mesh.material.dispose();
+                    confettiParticles.splice(i, 1);
+                }
+            }
+
+            // Slowly rotate starfield
+            if (starField) {
+                starField.rotation.y = elapsed * 0.02;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Start on Window Load
+        window.onload = function () {
+            init3D();
+            animate();
+            // Welcome Confetti
+            setTimeout(() => spawnConfettiBurst(70, new THREE.Vector3(0, 6, 0)), 500);
+        };
+    </script>
+</body>
+
+</html>
